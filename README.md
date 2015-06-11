@@ -7,14 +7,14 @@ The ultimate file encryptor/decryptor tool built in NodeJS.
 To encrypt:
 
 ~~~
-./encrypt \{fileToEncrypt\} \{password\} \{outputFile\}
+./encrypt {fileToEncrypt} {password} {outputFile}
 ~~~
 
 
 To decrypt:
 
 ~~~
-./decryptor \{fileToDecrypt\} \{password\} \{outputFile\}
+./decryptor \fileToDecrypt} {password} {outputFile}
 ~~~
 
 When decrypting, if password is incorrect, it will generate and empty file.
