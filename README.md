@@ -14,7 +14,7 @@ To encrypt:
 To decrypt:
 
 ~~~
-./decryptor \fileToDecrypt} {password} {outputFile}
+./decryptor {fileToDecrypt} {password} {outputFile}
 ~~~
 
 When decrypting, if password is incorrect, it will generate and empty file.
