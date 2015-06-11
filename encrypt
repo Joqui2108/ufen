@@ -1,0 +1,19 @@
+#!/usr/bin/env node
+
+var fs = require("fs");
+var crypto = require('crypto');
+var randomness = require('./lib/salt');
+	
+	var inputFile = process.argv[2];
+	var file = fs.createReadStream(inputFile);
+	var iv = new Buffer(randomness.iv, 'base64');
+	var salt = randomness.salt;
+	var key = new Buffer(randomness.key, 'base64');
+	var outputFile = process.argv[4];
+	var output = fs.createWriteStream(outputFile);
+	var encrypt = crypto.createCipheriv('aes-256-gcm', key, iv);
+	file.pipe(encrypt).pipe(output);
+	output.on('finish', function () {
+		fs.appendFile(outputFile, salt, {encoding: 'base64'});
+		fs.appendFile(outputFile, iv.toString('base64'), {encoding: 'base64'});
+	});

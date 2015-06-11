@@ -1,0 +1,34 @@
+#!/usr/bin/env node
+
+var fs = require("fs");
+var crypto = require('crypto');
+var stream = require('stream');
+
+var file = new Buffer([]);
+var	iv = new Buffer([], 'base64');
+var key, salt;
+
+var filestream = new stream.Readable();
+	filestream._read = function noop() {};
+
+var password = process.argv[3];
+var outputFile = process.argv[4];
+
+
+var readfile = fs.createReadStream(process.argv[2], {encoding: 'hex'});
+var output = fs.createWriteStream(outputFile);
+
+readfile.on('data', function (chunk) {
+	file += chunk;
+	iv = new Buffer(chunk.substr(-24, 24), 'hex');
+	salt = new Buffer(chunk.substr(-280, 256), 'hex').toString('base64');
+
+});
+
+readfile.on('end', function () {
+	file = new Buffer(file.substr(0, file.length-280), 'hex');
+	filestream.push(file);
+	var key = crypto.pbkdf2Sync(password, salt, 80000, 32, 'SHA512');
+	var decrypt = crypto.createDecipheriv('aes-256-gcm', key, iv);
+	filestream.pipe(decrypt).pipe(output);
+})
