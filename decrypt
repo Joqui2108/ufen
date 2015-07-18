@@ -1,34 +1,50 @@
 #!/usr/bin/env node
 
-var fs = require("fs");
-var crypto = require('crypto');
-var stream = require('stream');
+//Add necesary libraries.
+var fs = require("fs"),
+	crypto = require('crypto');
 
-var file = new Buffer([]);
-var	iv = new Buffer([], 'base64');
-var key, salt;
+//Declare global variables and get input info.
+var iv, key, salt, decrypt, tag;
+var file = process.argv[2],
+	password = process.argv[3],
+	outputFile = process.argv[4];
 
-var filestream = new stream.Readable();
-	filestream._read = function noop() {};
+//Read file parts.
+var	EOF = fs.statSync(file).size,
+	realFile = fs.createReadStream(file, {end: EOF-312}),
+	authFile = fs.createReadStream(file, {end: EOF-156, end: EOF-141}),
+	saltFile = fs.createReadStream(file, {start: EOF-140, end: EOF-13}),
+	ivFile = fs.createReadStream(file, {start: EOF-12, end: EOF});
 
-var password = process.argv[3];
-var outputFile = process.argv[4];
+authFile.on('data', function (chunk) {
+	tag = new Buffer(chunk, 'hex');
+})
 
-
-var readfile = fs.createReadStream(process.argv[2], {encoding: 'hex'});
-var output = fs.createWriteStream(outputFile);
-
-readfile.on('data', function (chunk) {
-	file += chunk;
-	iv = new Buffer(chunk.substr(-24, 24), 'hex');
-	salt = new Buffer(chunk.substr(-280, 256), 'hex').toString('base64');
-
+//Get used iv to encrypt.
+ivFile.on('data', function (chunk) {
+	iv = new Buffer(chunk, 'hex');
 });
 
-readfile.on('end', function () {
-	file = new Buffer(file.substr(0, file.length-280), 'hex');
-	filestream.push(file);
-	var key = crypto.pbkdf2Sync(password, salt, 80000, 32, 'SHA512');
-	var decrypt = crypto.createDecipheriv('aes-256-gcm', key, iv);
-	filestream.pipe(decrypt).pipe(output);
-})
+//Get used salt to encrypt.
+saltFile.on('data', function (chunk) {
+	salt = new Buffer(chunk, 'hex').toString('base64');
+});
+
+//Decrypt.
+saltFile.on('end', function () {
+	key = crypto.pbkdf2Sync(password, salt, 80000, 32, 'SHA512');
+	
+	ivFile.on('end', function () {
+		decrypt = crypto.createDecipheriv('aes-256-gcm', key, iv);
+		decrypt.setAuthTag(tag);
+	});
+
+	realFile.on('readable', function () {
+		var chunk = realFile.read(EOF-156);
+		if (null != chunk && chunk.length == EOF-156) {
+			var decrypted = decrypt.update(chunk);
+			fs.writeFileSync(outputFile, decrypted);
+		}
+	});
+});

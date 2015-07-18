@@ -1,19 +1,33 @@
 #!/usr/bin/env node
 
-var fs = require("fs");
-var crypto = require('crypto');
-var randomness = require('./lib/salt');
+	//Add necesary libraries.
+var fs = require("fs"),
+	crypto = require('crypto'),
+	randomness = require('./lib/salt');
 	
-	var inputFile = process.argv[2];
-	var file = fs.createReadStream(inputFile);
-	var iv = new Buffer(randomness.iv, 'base64');
-	var salt = randomness.salt;
-	var key = new Buffer(randomness.key, 'base64');
-	var outputFile = process.argv[4];
-	var output = fs.createWriteStream(outputFile);
-	var encrypt = crypto.createCipheriv('aes-256-gcm', key, iv);
-	file.pipe(encrypt).pipe(output);
-	output.on('finish', function () {
-		fs.appendFile(outputFile, salt, {encoding: 'base64'});
-		fs.appendFile(outputFile, iv.toString('base64'), {encoding: 'base64'});
-	});
+	//Read the file.
+var inputFile = process.argv[2],
+	file = fs.createReadStream(inputFile);
+
+	//Generate salt and key.
+var	iv = new Buffer(randomness.iv, 'base64'),
+	salt = randomness.salt,
+	key = new Buffer(randomness.key, 'base64');
+
+//Write output file.
+var	outputFile = process.argv[4],
+	output = fs.createWriteStream(outputFile);
+
+//Create cypher.
+var	encrypt = crypto.createCipheriv('aes-256-gcm', key, iv);
+
+//Encrypt.
+file.pipe(encrypt).pipe(output);
+
+//Add authtag, salt and iv to file.
+output.on('finish', function () {
+	var tag = encrypt.getAuthTag();
+	fs.appendFile(outputFile, tag.toString('base64'), {encoding: 'base64'});
+	fs.appendFile(outputFile, salt, {encoding: 'base64'});
+	fs.appendFile(outputFile, iv.toString('base64'), {encoding: 'base64'});
+});
