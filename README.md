@@ -22,4 +22,4 @@ When decrypting, if password is incorrect, it will generate and empty file.
 * Add graphical interface.
 
 ## KNOWK ISSUES
-* Decrypt is a memory-fucker when decrypting big files.
+* NO KNOW ISSUES 😃

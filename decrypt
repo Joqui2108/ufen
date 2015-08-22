@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 //Add necesary libraries.
-var fs = require("fs"),
+var fs = require('fs'),
 	crypto = require('crypto');
 
 //Declare global variables and get input info.
@@ -10,12 +10,16 @@ var file = process.argv[2],
 	password = process.argv[3],
 	outputFile = process.argv[4];
 
+var outFile = fs.createWriteStream(outputFile);
+
 //Read file parts.
 var	EOF = fs.statSync(file).size,
-	realFile = fs.createReadStream(file, {end: EOF-312}),
-	authFile = fs.createReadStream(file, {end: EOF-156, end: EOF-141}),
+	realFile = fs.createReadStream(file, {start: 0, end: EOF-157}),
+	authFile = fs.createReadStream(file, {start: EOF-156, end: EOF-141}),
 	saltFile = fs.createReadStream(file, {start: EOF-140, end: EOF-13}),
 	ivFile = fs.createReadStream(file, {start: EOF-12, end: EOF});
+
+realFile.setMaxListeners(0);
 
 authFile.on('data', function (chunk) {
 	tag = new Buffer(chunk, 'hex');
@@ -38,13 +42,17 @@ saltFile.on('end', function () {
 	ivFile.on('end', function () {
 		decrypt = crypto.createDecipheriv('aes-256-gcm', key, iv);
 		decrypt.setAuthTag(tag);
-	});
 
-	realFile.on('readable', function () {
-		var chunk = realFile.read(EOF-156);
-		if (null != chunk && chunk.length == EOF-156) {
-			var decrypted = decrypt.update(chunk);
-			fs.writeFileSync(outputFile, decrypted);
-		}
+		decrypt.on('data', function (chunk) {
+			outFile.write(chunk);
+		});
+
+		decrypt.on('error', function () {
+			console.log('Wrong password.');
+			fs.unlinkSync(outputFile)
+			process.exit(1);
+		})
+
+		realFile.pipe(decrypt);
 	});
 });
